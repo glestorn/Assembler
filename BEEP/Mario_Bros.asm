@@ -1,9 +1,11 @@
 .MODEL small
 .STACK 100h
 .DATA
-      frequency dw 0389h, 0389h, 0000h, 0389h, 0000h, 0416h, 0389h, 0000h, 02f8h, 0000h, 05f1h, 0000h
-      time      dw 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0004h, 93e0h, 0004h, 93e0h, 0004h, 93e0h, 0004h, 93e0h
-      
+      frequency dw 0712h, 0712h, 0000h, 0712h, 0000h, 08e9h, 0712h, 0000h, 05f1h, 0000h, 0be3h, 0000h
+                ;dw 0389h, 0389h, 0000h, 0389h, 0000h, 0416h, 0389h, 0000h, 02f8h, 0000h, 05f1h, 0000h
+      time      dw 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h 
+                dw 0002h, 49f0h, 0002h, 49f0h, 0004h, 93e0h, 0004h, 93e0h, 0004h, 93e0h, 0004h, 93e0h
+                ;dw 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0002h, 49f0h, 0004h, 93e0h, 0004h, 93e0h, 0004h, 93e0h, 0004h, 93e0h
 .CODE
 main:
       mov   ax,@data

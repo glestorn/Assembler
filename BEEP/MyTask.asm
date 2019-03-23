@@ -2,7 +2,8 @@
 .STACK 100h
 .DATA
       frequency dw 0be3h, 0be3h, 0be3h, 0e2ah, 0d5ah, 0d5ah, 0d5ah, 0fe8h, 0fe8h
-      time      dw 0006h, 1a80h, 0006h, 1a80h, 0006h, 1a80h, 000fh, 4240h, 0006h, 1a80h, 0006h, 1a80h, 0006h, 1a80h, 000ch, 3500h, 000fh, 4240h 
+      time      dw 0006h, 1a80h, 0006h, 1a80h, 0006h, 1a80h, 000fh, 4240h, 0006h
+                dw 1a80h, 0006h, 1a80h, 0006h, 1a80h, 000ch, 3500h, 000fh, 4240h 
       
 .CODE
 main:
@@ -15,12 +16,12 @@ main:
       out   43h,al
      
       mov   dx,8
+      mov   ah,6bh
+      out   43h,al
 loop_beep:
       push  dx
       mov   bx,frequency[si]
 
-      mov	ah,6bh
-      out	43h,al
       mov   al,bl
       out   42h,al
       mov   al,bh
