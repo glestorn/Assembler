@@ -1,0 +1,9 @@
+other/
+test/
+BEEP_4lab_apk/MyTask.asm
+BEEP_4lab_apk/Mortal_Combat.asm
+*.EXE
+*.OBJ
+*.TD
+*.MAP
+.gitignore
