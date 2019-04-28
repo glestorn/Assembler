@@ -12,23 +12,21 @@
 	err_string		db 	0dh,0ah,"There is wrong enter, try again",  0dh,0ah,'$'
 	err_limit 		db 	0dh,0ah,"Your number is too big, try again",0dh,0ah,'$'
 	array_size		db 		  "Enter size of array (up to 30) : ",	    '$'
+	wrong_enter		db 	0dh,0ah,"Your entered wrong size of array" ,0dh,0ah,'$'
 	enter_string	db 	0dh,0ah,'$' 
 	symbol		db	 	  ?,'$'
 	
 .CODE
-include 'D:\\DOSBox\\projects\\3_laba_asm\\check.inc'
-include 'D:\\DOSBox\\projects\\3_laba_asm\\init_exchange.inc'
-include 'D:\\DOSBox\\projects\\3_laba_asm\\prints.inc'
+include 'check.inc'
+include 'init_exchange.inc'
+include 'prints.inc'
 
 
 start:
       mov	ax,@data
       mov	ds,ax
       
-      print array_size
-      lea	dx,input_string
-      mov	ah,0Ah
-      int	21h
+    
       call	array_size_def
       mov	word ptr ARRAY_SIZED,ax
                     
@@ -36,7 +34,8 @@ start:
       call	matrix_init
       mov	cx,word ptr ARRAY_SIZED
       sub	cx,1
-
+      cmp	cx,0
+      je	print_medians
 bubble_sort:
 	xor	si,si
 	mov	dx,cx
@@ -56,12 +55,13 @@ bubble_sort:
 		cmp 	dx,0
 		ja	loop_start
 	loop bubble_sort
-                 
+	
+print_medians:               
 	print enter_string       
  	print result 
                
  	mov	ax,word ptr ARRAY_SIZED
- 	and	ax,0000000000000001b
+ 	and	ax,1
  	cmp	ax,0
  	jne	odd_matrix
  		
