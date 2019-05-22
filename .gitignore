@@ -6,4 +6,5 @@ BEEP_4lab_apk/Mortal_Combat.asm
 *.OBJ
 *.TD
 *.MAP
+*.TR
 .gitignore
