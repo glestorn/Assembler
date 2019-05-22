@@ -144,6 +144,9 @@ start:
 	mov	ax,@DATA
 	mov	ds,ax
 
+	call	readCmdArgs
+
+
 word_input:
 	output	input_mess
 	input		searchWord
@@ -253,4 +256,45 @@ finish:
 
 	mov	ax,4C00h
 	int	21h
+;;;;;;;;;;;;;;;;;;;;;;;;;
+readCmdArgs	proc
+	push 	ax
+    	push 	cx
+    
+    	mov 	cx,0
+	mov 	cl,es:[80h]	;80h - cmd length	
+	mov 	cmdLen,cx
+	cmp 	cx,1
+	jle 	endGCA 		           
+    
+	cld
+	mov 	di,81h         ;81h - cmd itself
+	mov 	al,' '
+	rep 	scasb   ;repeat send byte while not end
+	dec 	di
+	
+	lea 	si,cmdLine
+skip:
+	mov 	al,es:[di]
+	cmp 	al,0Dh
+	je 	endSkip
+	cmp 	al,' '
+	je 	endSkip 
+	cmp 	al,09h
+	je 	endSkip
+	mov 	ds:[si], al 
+	inc 	di
+	inc 	si
+	jmp 	skip
+       	
+endSkip:
+	inc 	si
+	mov 	ds:[si], word ptr '$'  
+             
+endGCA:
+	pop 	cx
+	pop 	ax    
+	ret
+readCmdArgs endp
+
 end start
