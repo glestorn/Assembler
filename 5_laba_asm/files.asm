@@ -1,3 +1,4 @@
+;.286
 .MODEL	small
 .STACK 	100h
 .DATA
@@ -11,15 +12,19 @@
 	err_message db 	0dh,0ah,"You input isn't word, try again",0dh,0ah,'$'
 .CODE
 input 	macro offs
+	pusha
 	lea	dx,offs
 	mov	ah,0Ah
 	int 	21h
+	popa
 input 	endm 
 
 output	macro offs
+	pusha
 	lea	dx,offs
 	mov	ah,9h
 	int 	21h
+	popa
 output	endm
 
 check_word 	macro offs
@@ -33,17 +38,19 @@ loop_check:
 	mov	al,offs[si]
 	cmp	al,' '
 	je 	error_input
-	cmp	al,'\r'		;??????????????
+	cmp	al,0Ah
+	je	error_input
+	cmp	al,0Dh
 	je 	error_input
-	cmp	al,'\t'		;??????????????
+	cmp	al,09h
 	je 	error_input
-	cmp	al,','
+	cmp	al,2Ch
 	je 	error_input
-	cmp	al,'!'
+	cmp	al,21h
 	je 	error_input
-	cmp	al,'.'
+	cmp	al,2Eh
 	je 	error_input
-	cmp	al,'?'
+	cmp	al,3Fh
 	je 	error_input
 	inc 	si
 	loop 	loop_check
@@ -56,87 +63,125 @@ error_input:
 end_check:
 check_word 	endm
 
+fileOpen	macro	file,ID
+	lea	dx,file
+	mov	ah,3Dh
+	mov	al,00h
+	int	21h
+	mov	ID,ax
+fileOpen	endm 
+
+fileWriteOpen macro file,ID
+	lea	dx,file
+	mov	ah,3Dh
+	mov	al,01h
+	int	21h
+	mov	ID,ax
+fileWriteOpen endm
+
+fileClose	macro	ID
+	mov	ah,3Eh
+	mov	bx,ID
+	int	21h
+fileClose	endm
+
+read 	proc
+	push 	cx
+	mov	bx,IDfileIn
+	lea 	dx,symbol
+	mov	cx,1
+	mov	ah,3Fh
+	int	21h
+	pop 	cx
+	ret
+read 	endp
+
+write proc
+	push 	cx
+	mov 	ah,40h
+	mov 	bx,IDfileOut
+	mov 	cx,1
+	lea 	dx,symbol
+	int 	21h
+	pop 	cx
+	ret
+write endp
+
+two_pos_back proc
+	mov 	ah,42h
+	mov 	bx,IDfileIn
+	mov 	al,1
+	mov 	cx,0FFFFh
+	mov 	dx,0FFFEh
+	int 	21h
+	ret
+two_pos_back endp
+
+one_pos_back proc
+	mov 	ah,42h
+	mov 	bx,IDfileIn
+	mov 	al,1
+	mov 	cx,0FFFFh
+	mov 	dx,0FFFFh
+	int 	21h 
+	ret
+one_pos_back endp
+
+skip_newl 	proc
+	mov	ah,42h
+	mov	bx,IDfileIn
+	mov	al,1
+	mov	cx,0
+	mov	dx,1
+      int	21h
+      ret
+skip_newl	endp
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+       
 start:
 	mov	ax,@DATA
 	mov	ds,ax
 
-	; call getComArgs
-	; ;{
-	; 		push ax
-	; 	   	push cx
-		    
-	; 	    	mov cx, 0
-	; 		mov cl, es:[80h]	;80h - cmd length	
-	; 		mov cmdLen, cx
-	; 		cmp cx, 1
-	; 		jle endGCA 		           
-		    
-	; 		cld
-	; 		mov di, 81h         ;81h - cmd itself
-	; 		mov al, ' '
-	; 		rep scasb   ;repeat send byte while not end
-	; 		dec di
-			
-	; 		lea si, cmdLine
-	; 	skip:
-	; 		mov al,es:[di]
-	; 		cmp al, 0dh ;/r?
-	; 		je endSkip
-	; 		cmp al, 20h ;space?
-	; 		je endSkip 
-	; 		cmp al, 9h  ;tab?
-	; 		je endSkip
-	; 		mov ds:[si], al 
-	; 		inc di
-	; 		inc si
-	; 		jmp skip  
-		       	
-	; 	endSkip:
-	; 		inc si
-	; 		mov ds:[si], word ptr '$'   
-		             
-	; 	endGCA:
-	; 		pop cx
-	; 		pop ax    
- ;    ;}    
-    
- ;    	mov ax, cmdLen  
- ;    	cmp cmdLen, 1
- ;   	jle noData
-    
- ;    	;display cmdLine
-    
- ;    	display procStartStr
- ;    	lea dx, cmdLine
 word_input:
 	output	input_mess
 	input		searchWord
 	check_word  searchWord
 
+;TEST END OF FILE (IN ANOTHER PROGRAM)
+;TEST START OF FILE (IN ANOTHER PROGRAM)
+;check if when read in end of file it move further
+
 	fileOpen	fileIn,IDfileIn
-	fileOpen	fileOut,IDfileOut
+	fileWriteOpen	fileOut,IDfileOut
 
 	mov 	si,2
 check_for_word:
 	call 	read
 	cmp	searchWord[si],0Dh
 	jne 	no_find_word
-	cmp 	ax,0
+	cmp	symbol,00h
 	je 	finish
 	mov 	si,2
 	cmp	symbol,' '
 	je 	miss_row
+	cmp	symbol,09h
+	je 	miss_row
 	cmp 	symbol,0Dh
-	je 	check_for_word
-	jmp	miss_word
+	jne 	miss_word
+	call	skip_newl
+	jmp	check_for_word
 
 no_find_word:
-	cmp	ax,0
-	je 	print_row
+	cmp	symbol,00h
+	je 	return_to_row_start
 	cmp	symbol,' '
 	je 	enter_place
+	cmp	symbol,09h
+	je 	enter_place
 	cmp 	symbol,0Dh
-	je 	print_row
+	je 	return_to_row_start
       
       mov	ah,searchWord[si]
 	cmp	symbol,ah
@@ -149,20 +194,24 @@ miss_word:
 	call 	read
 	cmp	symbol,' '
 	je 	enter_place
+	cmp	symbol,09h
+	je	enter_place
 	cmp 	symbol,0Dh
-	je 	print_row
-	cmp 	ax,0
-	je 	print_row
+	je 	return_to_row_start
+	cmp 	symbol,00h
+	je 	return_to_row_start
 	jmp 	miss_word
 
 enter_place:
 	call	read
-	cmp 	ax,0
-	je 	print_row
+	cmp 	symbol,00h
+	je 	return_to_row_start
 	cmp	symbol,' '
 	je	enter_place
+	cmp	symbol,09h
+	je	enter_place
 	cmp 	symbol,0Dh
-	je 	print_row
+	je 	return_to_row_start
 	
 	mov	si,2
 	call 	one_pos_back
@@ -170,90 +219,38 @@ enter_place:
 
 miss_row:
 	call	read
-	cmp 	symbol,0Dh
-	je 	check_for_word
-	cmp 	ax,0
+	cmp 	symbol,00h
 	je 	finish
-	jmp	miss_row	
+	cmp 	symbol,0Dh
+	jne 	miss_row
+	call	skip_newl
+	jmp 	check_for_word
+	
+return_to_row_start:
+	call	two_pos_back
+	jc	print_from_start_of_file
+	call 	read
+	cmp	symbol,0Ah
+	je 	print_row
+	jmp 	return_to_row_start
+	
+print_from_start_of_file:
+	call	one_pos_back
+	jmp	print_row
 
 print_row:
-	call	two_pos_back
 	call 	read
-	jc	print_row_from_start
-	cmp	symbol,0Dh
-	je 	print_row_from_start
-	jmp 	print_row
-
-print_row_from_start:
-	call 	read
-	cmp	ax,0
+	cmp	symbol,00h
 	je 	finish
 	call 	write
-	cmp 	symbol,0Dh
+	cmp 	symbol,0Ah
 	je 	check_for_word
+	jmp	print_row
 
 finish:
 	fileClose	IDfileIn
 	fileClose	IDfileOut
 
-	mov	ah,4Ch
+	mov	ax,4C00h
 	int	21h
-;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;
-fileOpen	macro	file,ID
-	lea	dx,file
-	mov	ah,3Dh
-	mov	al,00h 	;SET RIGHTS CORRECTLY
-	int	21h
-	mov	ID,ax
-fileOpen	endm
-
-fileClose	macro	ID
-	mov	ah,3Eh
-	mov	bx,ID
-	int	21h
-fileClose	endm
-
-read 	proc
-	mov	bx,IDfileIn
-	lea 	dx,symbol
-	mov	cx,1
-	mov	ah,3Fh
-	int	21h
-	ret
-read 	endp
-
-write proc
-	mov 	ah,40h
-	mov 	bx,IDfileOut
-	mov 	cx,1
-	lea 	dx,symbol
-	int 	21h
-	ret
-write endp
-
-two_pos_back proc
-	mov 	ah,42h
-	mov 	bx,IDfileIn
-	mov 	al,1
-	mov 	cx,FFFFh
-	mov 	dx,FFFEh
-	int 	21h
-	ret
-two_pos_back endp
-
-one_pos_back proc
-	mov 	ah,42h
-	mov 	bx,IDfileIn
-	mov 	al,1
-	mov 	cx,FFFFh
-	mov 	dx,FFFFh
-	int 	21h
-one_pos_back endp
-
 end start
-
-;TEST END OF FILE (IN ANOTHER PROGRAM)
-;TEST START OF FILE (IN ANOTHER PROGRAM)
-;check if when read in end of file it move further
