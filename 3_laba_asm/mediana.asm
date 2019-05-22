@@ -1,3 +1,4 @@
+.286
 .MODEL small
 .STACK 100h
 .DATA
@@ -17,9 +18,9 @@
 	symbol		db	 	  ?,'$'
 	
 .CODE
-include 'check.inc'
-include 'init_exchange.inc'
-include 'prints.inc'
+include check.inc
+include init_exchange.inc
+include prints.inc
 
 
 start:
