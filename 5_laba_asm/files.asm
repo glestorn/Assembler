@@ -1,15 +1,29 @@
-;.286
 .MODEL	small
 .STACK 	100h
 .DATA
-	fileIn	db	"fileIn.txt",0
-	IDfileIn	dw	?
-	fileOut	db	"fileOut.txt",0
-	IDfileOut	dw	?
-	input_mess 	db 	"Enter word to find : ",'$'
-	symbol	db 	?
-	searchWord	db	21,0,22 DUP('$')
-	err_message db 	0dh,0ah,"You input isn't word, try again",0dh,0ah,'$'
+	cmdLen 		dw 	?
+	IDfileIn		dw	?
+	IDfileOut		dw	?
+	symbol		db 	?
+	searchWord		db	126 		DUP('$')
+	fileIn		db	126 		DUP(0)
+	fileOut		db			"fileOut.txt",0
+
+	err_message		db 	0dh,0ah,	"Your input isn't word",'$'
+	empty_request	db 	0dh,0ah,	"There is nothing in cmd",'$'
+	empty_cmd		db	0dh,0ah,	"There is no word in cmd",'$'
+	wrg_params		db	0dh,0ah,	"You enter is wrong (too much params "
+				db		  	"or there are spaces/tabs in the end)",'$'
+	wrongFileName	db	0dh,0ah,	"You entered wrong file name",'$'
+	wrongPath		db 	0dh,0ah,	"You entered wrong path of file",'$'
+	tooManyFiles 	db 	0dh,0ah,	"There are opened too many files",'$'
+	noAccess 		db 	0dh,0ah,	"Access to this file is denied",'$'
+	wrongAcess 		db 	0dh,0ah,	"There is using wrong access mode",'$'
+	OKopening		db 	0dh,0ah,	"File was opened successfully",'$'
+
+	endFlag	db	0
+
+	
 .CODE
 input 	macro offs
 	pusha
@@ -28,14 +42,15 @@ output	macro offs
 output	endm
 
 check_word 	macro offs
-	mov	si,2
-	mov	cx,0
-	mov	cl,offs[1]
-	cmp	cx,0
-	je 	error_input
+	xor 	si,si
 
 loop_check:
 	mov	al,offs[si]
+	cmp	al,'0'
+	jb	not_number
+	cmp	al,'9'
+	jbe	error_input
+not_number:
 	cmp	al,' '
 	je 	error_input
 	cmp	al,0Ah
@@ -52,24 +67,57 @@ loop_check:
 	je 	error_input
 	cmp	al,3Fh
 	je 	error_input
+	cmp	al,'$'
+	je 	end_check
 	inc 	si
 	loop 	loop_check
 	jmp	end_check
 
 error_input:
 	output err_message
-	jmp	word_input
+	jmp	finish
 
 end_check:
 check_word 	endm
 
-fileOpen	macro	file,ID
+fileReadOpen	macro	file,ID
 	lea	dx,file
 	mov	ah,3Dh
 	mov	al,00h
 	int	21h
+	jc	errorHandling
 	mov	ID,ax
-fileOpen	endm 
+	output OKopening
+	jmp	open_write_file
+
+errorHandling:
+	cmp 	al,02h
+	jne 	pathNotFound
+	output wrongFileName
+	jmp	finish
+
+pathNotFound:
+	cmp 	al,03h
+	jne 	tooManyFilesOpened
+	output wrongPath
+	jmp 	finish
+
+tooManyFilesOpened:
+	cmp 	al,04h
+	jne 	accessDenied
+	output tooManyFiles
+	jmp 	finish
+
+accessDenied:
+	cmp 	al,05h
+	jne 	wrongAccessMode
+	output noAccess
+	jmp 	finish
+
+wrongAccessMode:
+	output wrongAcess
+	jmp 	finish
+fileReadOpen	endm 
 
 fileWriteOpen macro file,ID
 	lea	dx,file
@@ -145,28 +193,23 @@ start:
 	mov	ds,ax
 
 	call	readCmdArgs
+	cmp 	endFlag,0
+	jne 	finish
 
-
-word_input:
-	output	input_mess
-	input		searchWord
 	check_word  searchWord
 
-;TEST END OF FILE (IN ANOTHER PROGRAM)
-;TEST START OF FILE (IN ANOTHER PROGRAM)
-;check if when read in end of file it move further
-
-	fileOpen	fileIn,IDfileIn
+	fileReadOpen	fileIn,IDfileIn
+open_write_file:
 	fileWriteOpen	fileOut,IDfileOut
 
-	mov 	si,2
+	xor 	si,si
 check_for_word:
 	call 	read
-	cmp	searchWord[si],0Dh
+	cmp	searchWord[si],'$'
 	jne 	no_find_word
 	cmp	symbol,00h
 	je 	finish
-	mov 	si,2
+	xor 	si,si
 	cmp	symbol,' '
 	je 	miss_row
 	cmp	symbol,09h
@@ -216,7 +259,7 @@ enter_place:
 	cmp 	symbol,0Dh
 	je 	return_to_row_start
 	
-	mov	si,2
+	xor 	si,si
 	call 	one_pos_back
 	jmp	check_for_word
 
@@ -256,45 +299,90 @@ finish:
 
 	mov	ax,4C00h
 	int	21h
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
 readCmdArgs	proc
 	push 	ax
     	push 	cx
     
     	mov 	cx,0
-	mov 	cl,es:[80h]	;80h - cmd length	
-	mov 	cmdLen,cx
+	mov 	cl,es:[80h]
 	cmp 	cx,1
-	jle 	endGCA 		           
+	jle 	emptyRequest		           
     
 	cld
-	mov 	di,81h         ;81h - cmd itself
+	mov 	di,81h 
 	mov 	al,' '
-	rep 	scasb   ;repeat send byte while not end
+	rep 	scasb   
 	dec 	di
 	
-	lea 	si,cmdLine
+	lea 	si,fileIn
 skip:
 	mov 	al,es:[di]
 	cmp 	al,0Dh
-	je 	endSkip
+	je 	noWordInCmd
 	cmp 	al,' '
-	je 	endSkip 
+	je 	skip_spaces_tabs
 	cmp 	al,09h
-	je 	endSkip
-	mov 	ds:[si], al 
+	je 	skip_spaces_tabs
+	mov 	ds:[si],al
 	inc 	di
 	inc 	si
 	jmp 	skip
-       	
-endSkip:
+       
+skip_spaces_tabs:
+	inc 	di
+	mov	al,es:[di]
+	cmp	al,' '
+	je 	skip_spaces_tabs		
+	cmp	al,09h
+	je 	skip_spaces_tabs
+	cmp	al,0Dh
+	je 	noWordInCmd
+
+	lea	si,searchWord
+defineWordOfSearch:
+	mov	al,es:[di]
+	cmp	al,0Dh
+	je 	endCmd
+	cmp	al,' '
+	je 	errorCmdInput
+	cmp 	al,09h
+	je 	errorCmdInput
+	mov	ds:[si],al
+	inc 	di
 	inc 	si
-	mov 	ds:[si], word ptr '$'  
-             
-endGCA:
+	jmp	defineWordOfSearch
+
+endCmd:
 	pop 	cx
 	pop 	ax    
 	ret
+
+emptyRequest:
+	output empty_request
+	pop 	cx
+	pop 	ax
+	mov 	endFlag,1
+	ret
+
+noWordInCmd:
+	output empty_cmd
+	pop 	cx
+	pop 	ax
+	mov	endFlag,1
+	ret
+	
+errorCmdInput:
+	output wrg_params
+	pop 	cx
+	pop 	ax
+	mov 	endFlag,1
+	ret
+
 readCmdArgs endp
 
 end start
