@@ -20,10 +20,10 @@
 	noAccess 		db 	0dh,0ah,	"Access to this file is denied",'$'
 	wrongAcess 		db 	0dh,0ah,	"There is using wrong access mode",'$'
 	OKopening		db 	0dh,0ah,	"File was opened successfully",'$'
+	position_buff	dw	?
+	position_new	dw 	?
 
 	endFlag	db	0
-
-	
 .CODE
 input 	macro offs
 	pusha
@@ -70,8 +70,7 @@ not_number:
 	cmp	al,'$'
 	je 	end_check
 	inc 	si
-	loop 	loop_check
-	jmp	end_check
+	jmp 	loop_check
 
 error_input:
 	output err_message
@@ -162,6 +161,8 @@ two_pos_back proc
 	mov 	cx,0FFFFh
 	mov 	dx,0FFFEh
 	int 	21h
+	; mov	word ptr position_new,cx
+	; mov	word ptr position_new+4,dx
 	ret
 two_pos_back endp
 
@@ -207,7 +208,7 @@ check_for_word:
 	call 	read
 	cmp	searchWord[si],'$'
 	jne 	no_find_word
-	cmp	symbol,00h
+	cmp	ax,0
 	je 	finish
 	xor 	si,si
 	cmp	symbol,' '
@@ -220,7 +221,7 @@ check_for_word:
 	jmp	check_for_word
 
 no_find_word:
-	cmp	symbol,00h
+	cmp	ax,0
 	je 	return_to_row_start
 	cmp	symbol,' '
 	je 	enter_place
@@ -244,13 +245,13 @@ miss_word:
 	je	enter_place
 	cmp 	symbol,0Dh
 	je 	return_to_row_start
-	cmp 	symbol,00h
+	cmp 	ax,0
 	je 	return_to_row_start
 	jmp 	miss_word
 
 enter_place:
 	call	read
-	cmp 	symbol,00h
+	cmp 	ax,0
 	je 	return_to_row_start
 	cmp	symbol,' '
 	je	enter_place
@@ -265,20 +266,39 @@ enter_place:
 
 miss_row:
 	call	read
-	cmp 	symbol,00h
+	cmp 	ax,0
 	je 	finish
 	cmp 	symbol,0Dh
 	jne 	miss_row
 	call	skip_newl
+	xor	si,si
 	jmp 	check_for_word
 	
-return_to_row_start:
+return_to_row_start: 
+	mov	position_buff,0FFFFh
+return_to:  
+	; call 	define_current_pos	
 	call	two_pos_back
-	jc	print_from_start_of_file
+	cmp	position_buff,ax
+	ja	continue_pars
+	
+	mov	ah,42h
+	mov 	bx,IDfileIn
+	mov 	al,0
+	mov 	cx,0
+	mov 	dx,0
+	int 	21h
+	jmp	print_row
+	
+continue_pars:
+	mov	position_buff,ax
+	; jc	print_from_start_of_file
 	call 	read
 	cmp	symbol,0Ah
 	je 	print_row
-	jmp 	return_to_row_start
+	cmp 	symbol,00h
+	je 	print_row
+	jmp 	return_to
 	
 print_from_start_of_file:
 	call	one_pos_back
@@ -286,12 +306,13 @@ print_from_start_of_file:
 
 print_row:
 	call 	read
-	cmp	symbol,00h
+	cmp	ax,0
 	je 	finish
 	call 	write
 	cmp 	symbol,0Ah
-	je 	check_for_word
-	jmp	print_row
+	jne 	print_row
+	xor 	si,si
+	jmp	check_for_word
 
 finish:
 	fileClose	IDfileIn
@@ -299,11 +320,9 @@ finish:
 
 	mov	ax,4C00h
 	int	21h
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
-
 readCmdArgs	proc
 	push 	ax
     	push 	cx
@@ -384,5 +403,17 @@ errorCmdInput:
 	ret
 
 readCmdArgs endp
+
+define_current_pos proc
+	mov 	ah,42h
+	mov 	bx,IDfileIn
+	mov 	al,1
+	mov 	cx,0
+	mov 	dx,0
+	int 	21h 
+	mov	word ptr position_buff,cx
+	mov	word ptr position_buff+4,dx
+	ret
+define_current_pos endp
 
 end start
